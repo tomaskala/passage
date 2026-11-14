@@ -76,7 +76,6 @@ _passage()
 	local cur="${COMP_WORDS[COMP_CWORD]}"
 	local commands="init ls find grep show insert generate edit rm mv cp git help version ${PASSAGE_EXTENSION_COMMANDS[*]}"
 	if [[ $COMP_CWORD -gt 1 ]]; then
-		local lastarg="${COMP_WORDS[$COMP_CWORD-1]}"
 		case "${COMP_WORDS[1]}" in
 			ls|list|edit)
 				_passage_complete_entries
