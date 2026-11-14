@@ -213,7 +213,7 @@ cmd_version() {
 	============================================
 	=   passage: age-backed password manager   =
 	=                                          =
-	=                  v1.8.0                  =
+	=                  v1.8.1                  =
 	=                                          =
 	=             Filippo Valsorda             =
 	=                                          =
