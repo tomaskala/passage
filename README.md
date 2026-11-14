@@ -90,6 +90,8 @@ done < <(find . -path '*/.git' -prune -o -iname '*.gpg' -print0)
 ```
 PASSAGE_DIR               Password store location
 
+PASSAGE_EXTENSIONS_DIR    Extensions location
+
 PASSAGE_IDENTITIES_FILE   Identities file location
 
 PASSAGE_AGE               age binary (tested with age and rage)
