@@ -1,24 +1,32 @@
+# Installation
+
 Simply typing
 
-    make install
+```
+make install
+```
 
 should install passage to the standard locations.
 
-To install on a macOS system with Homebrew type
+To install on a MacOS system with Homebrew, type
 
-    make install PREFIX="$(brew --cellar)/passage/$(git describe --tags)"
-    brew link passage
+```
+make install PREFIX="$(brew --cellar)/passage/$(git describe --tags)"
+brew link passage
+```
 
 The makefile is aware of the following environment variables:
 
+```
 PREFIX      default: /usr
 DESTDIR     default: 
 BINDIR      default: $(PREFIX)/bin
 LIBDIR      default: $(PREFIX)/lib
+```
 
--- Completion Files --
+# Completion Files
 
-The install target will automatically determine the existance
+The install target will automatically determine the existence
 of bash, zsh, and fish, and install the completion files as
 needed. If you'd like to choose manually, you may set WITH_ALLCOMP,
 WITH_BASHCOMP, WITH_ZSHCOMP, or WITH_FISHCOMP to "yes" or "no". The
