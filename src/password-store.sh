@@ -32,37 +32,42 @@ set_git() {
 	done
 	[[ $(git -C "$INNER_GIT_DIR" rev-parse --is-inside-work-tree 2>/dev/null) == true ]] || INNER_GIT_DIR=""
 }
+
 git_add_file() {
 	[[ -n $INNER_GIT_DIR ]] || return
 	git -C "$INNER_GIT_DIR" add "$1" || return
 	[[ -n $(git -C "$INNER_GIT_DIR" status --porcelain "$1") ]] || return
 	git_commit "$2"
 }
+
 git_commit() {
 	[[ -n $INNER_GIT_DIR ]] || return
 	git -C "$INNER_GIT_DIR" commit -m "$1"
 }
+
 yesno() {
 	[[ -t 0 ]] || return 0
 	local response
 	read -r -p "$1 [y/N] " response
 	[[ $response == [yY] ]] || exit 1
 }
+
 die() {
 	echo "$@" >&2
 	exit 1
 }
+
 set_age_recipients() {
-	AGE_RECIPIENT_ARGS=( )
+	AGE_RECIPIENT_ARGS=()
 
 	if [[ -n $PASSAGE_RECIPIENTS_FILE ]]; then
-		AGE_RECIPIENT_ARGS+=( "-R" "$PASSAGE_RECIPIENTS_FILE" )
+		AGE_RECIPIENT_ARGS+=("-R" "$PASSAGE_RECIPIENTS_FILE")
 		return
 	fi
 
 	if [[ -n $PASSAGE_RECIPIENTS ]]; then
 		for age_recipient in $PASSAGE_RECIPIENTS; do
-			AGE_RECIPIENT_ARGS+=( "-r" "$age_recipient" )
+			AGE_RECIPIENT_ARGS+=("-r" "$age_recipient")
 		done
 		return
 	fi
@@ -74,11 +79,11 @@ set_age_recipients() {
 	current="$current/.age-recipients"
 
 	if [[ ! -f $current ]]; then
-		AGE_RECIPIENT_ARGS+=( "-i" "$IDENTITIES_FILE" )
+		AGE_RECIPIENT_ARGS+=("-i" "$IDENTITIES_FILE")
 		return
 	fi
 
-	AGE_RECIPIENT_ARGS+=( "-R" "$current" )
+	AGE_RECIPIENT_ARGS+=("-R" "$current")
 }
 
 reencrypt_path() {
@@ -95,9 +100,10 @@ reencrypt_path() {
 		set_age_recipients "$passfile_dir"
 		echo "$passfile_display: reencrypting with: age ${AGE_RECIPIENT_ARGS[@]}"
 		$AGE -d -i "$IDENTITIES_FILE" "$passfile" | $AGE -e "${AGE_RECIPIENT_ARGS[@]}" -o "$passfile_temp" &&
-		mv "$passfile_temp" "$passfile" || rm -f "$passfile_temp"
+			mv "$passfile_temp" "$passfile" || rm -f "$passfile_temp"
 	done < <(find "$1" -path '*/.git' -prune -o -iname '*.age' -print0)
 }
+
 check_sneaky_paths() {
 	local path
 	for path in "$@"; do
@@ -114,13 +120,14 @@ check_sneaky_paths() {
 #
 
 clip() {
-	if [[ -n $WAYLAND_DISPLAY ]] && command -v wl-copy &> /dev/null; then
+	if [[ -n $WAYLAND_DISPLAY ]] && command -v wl-copy &>/dev/null; then
 		local primary=""
 		[[ $X_SELECTION == primary ]] && primary="--primary"
-		echo -n "$1" | timeout --preserve-status "$CLIP_TIME" wl-copy $primary --type text/plain --sensitive --foreground 2>/dev/null & disown
-	elif [[ -n $DISPLAY ]] && command -v xclip &> /dev/null; then
-		local copy_cmd=( xclip -selection "$X_SELECTION" )
-		local paste_cmd=( xclip -o -selection "$X_SELECTION" )
+		echo -n "$1" | timeout --preserve-status "$CLIP_TIME" wl-copy $primary --type text/plain --sensitive --foreground 2>/dev/null &
+		disown
+	elif [[ -n $DISPLAY ]] && command -v xclip &>/dev/null; then
+		local copy_cmd=(xclip -selection "$X_SELECTION")
+		local paste_cmd=(xclip -o -selection "$X_SELECTION")
 		local sleep_argv0="password store sleep on display $DISPLAY for X selection $X_SELECTION"
 		# This base64 business is because bash cannot store binary data in a shell
 		# variable. Specifically, it cannot store nulls nor (non-trivally) store
@@ -129,11 +136,12 @@ clip() {
 		local before="$("${paste_cmd[@]}" 2>/dev/null | $BASE64)"
 		echo -n "$1" | "${copy_cmd[@]}" || die "Error: Could not copy data to the clipboard"
 		(
-			( exec -a "$sleep_argv0" bash <<<"trap 'kill %1' TERM; sleep '$CLIP_TIME' & wait" )
+			(exec -a "$sleep_argv0" bash <<<"trap 'kill %1' TERM; sleep '$CLIP_TIME' & wait")
 			local now="$("${paste_cmd[@]}" | $BASE64)"
 			[[ $now != $(echo -n "$1" | $BASE64) ]] && before="$now"
 			echo "$before" | $BASE64 -d | "${copy_cmd[@]}"
-		) >/dev/null 2>&1 & disown
+		) >/dev/null 2>&1 &
+		disown
 	else
 		die "Error: No X11 or Wayland display and clipper detected"
 	fi
@@ -173,13 +181,14 @@ tmpdir() {
 		}
 		trap remove_tmpfile EXIT
 	else
-		[[ $warn -eq 1 ]] && yesno "$(cat <<-_EOF
-		Your system does not have /dev/shm, which means that it may
-		be difficult to entirely erase the temporary non-encrypted
-		password file after editing.
+		[[ $warn -eq 1 ]] && yesno "$(
+			cat <<-_EOF
+				Your system does not have /dev/shm, which means that it may
+				be difficult to entirely erase the temporary non-encrypted
+				password file after editing.
 
-		Are you sure you would like to continue?
-		_EOF
+				Are you sure you would like to continue?
+			_EOF
 		)"
 		SECURE_TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/$template")"
 		shred_tmpfile() {
@@ -190,6 +199,7 @@ tmpdir() {
 	fi
 
 }
+
 GETOPT="getopt"
 SHRED="shred -f -z"
 BASE64="base64"
@@ -203,29 +213,28 @@ source "$(dirname "$0")/platform/$(uname | cut -d _ -f 1 | tr '[:upper:]' '[:low
 # END platform definable
 #
 
-
 #
 # BEGIN subcommand functions
 #
 
 cmd_version() {
 	cat <<-_EOF
-	============================================
-	=   passage: age-backed password manager   =
-	=                                          =
-	=                  v1.8.1                  =
-	=                                          =
-	=             Filippo Valsorda             =
-	=                                          =
-	=        Based on password-store by        =
-	=                                          =
-	=             Jason A. Donenfeld           =
-	=               Jason@zx2c4.com            =
-	=                                          =
-	=                Modified by               =
-	=                                          =
-	=                 Tomas Kala               =
-	============================================
+		============================================
+		=   passage: age-backed password manager   =
+		=                                          =
+		=                  v1.8.2                  =
+		=                                          =
+		=             Filippo Valsorda             =
+		=                                          =
+		=        Based on password-store by        =
+		=                                          =
+		=             Jason A. Donenfeld           =
+		=               Jason@zx2c4.com            =
+		=                                          =
+		=                Modified by               =
+		=                                          =
+		=                 Tomas Kala               =
+		============================================
 	_EOF
 }
 
@@ -233,42 +242,42 @@ cmd_usage() {
 	cmd_version
 	echo
 	cat <<-_EOF
-	Usage:
-	    $PROGRAM [ls] [subfolder]
-	        List passwords.
-	    $PROGRAM find pass-names...
-	    	List passwords that match pass-names.
-	    $PROGRAM [show] [--clip[=line-number],-c[line-number]] pass-name
-	        Show existing password and optionally put it on the clipboard.
-	        If put on the clipboard, it will be cleared in $CLIP_TIME seconds.
-	    $PROGRAM grep [GREPOPTIONS] search-string
-	        Search for password files containing search-string when decrypted.
-	    $PROGRAM insert [--echo,-e | --multiline,-m] [--force,-f] pass-name
-	        Insert new password. Optionally, echo the password back to the console
-	        during entry. Or, optionally, the entry may be multiline. Prompt before
-	        overwriting existing password unless forced.
-	    $PROGRAM edit pass-name
-	        Insert a new password or edit an existing password using ${EDITOR:-vi}.
-	    $PROGRAM generate [--no-symbols,-n] [--clip,-c] [--in-place,-i | --force,-f] pass-name [pass-length]
-	        Generate a new password of pass-length (or $GENERATED_LENGTH if unspecified) with optionally no symbols.
-	        Optionally put it on the clipboard and clear board after $CLIP_TIME seconds.
-	        Prompt before overwriting existing password unless forced.
-	        Optionally replace only the first line of an existing file with a new password.
-	    $PROGRAM reencrypt [--path=subfolder,-p subfolder]
-	        Selectively reencrypt existing passwords.
-	    $PROGRAM rm [--recursive,-r] [--force,-f] pass-name
-	        Remove existing password or directory, optionally forcefully.
-	    $PROGRAM mv [--force,-f] old-path new-path
-	        Renames or moves old-path to new-path, optionally forcefully, selectively reencrypting.
-	    $PROGRAM cp [--force,-f] old-path new-path
-	        Copies old-path to new-path, optionally forcefully, selectively reencrypting.
-	    $PROGRAM git git-command-args...
-	        If the password store is a git repository, execute a git command
-	        specified by git-command-args.
-	    $PROGRAM help
-	        Show this text.
-	    $PROGRAM version
-	        Show version information.
+		Usage:
+		    $PROGRAM [ls] [subfolder]
+		        List passwords.
+		    $PROGRAM find pass-names...
+		    	List passwords that match pass-names.
+		    $PROGRAM [show] [--clip[=line-number],-c[line-number]] pass-name
+		        Show existing password and optionally put it on the clipboard.
+		        If put on the clipboard, it will be cleared in $CLIP_TIME seconds.
+		    $PROGRAM grep [GREPOPTIONS] search-string
+		        Search for password files containing search-string when decrypted.
+		    $PROGRAM insert [--echo,-e | --multiline,-m] [--force,-f] pass-name
+		        Insert new password. Optionally, echo the password back to the console
+		        during entry. Or, optionally, the entry may be multiline. Prompt before
+		        overwriting existing password unless forced.
+		    $PROGRAM edit pass-name
+		        Insert a new password or edit an existing password using ${EDITOR:-vi}.
+		    $PROGRAM generate [--no-symbols,-n] [--clip,-c] [--in-place,-i | --force,-f] pass-name [pass-length]
+		        Generate a new password of pass-length (or $GENERATED_LENGTH if unspecified) with optionally no symbols.
+		        Optionally put it on the clipboard and clear board after $CLIP_TIME seconds.
+		        Prompt before overwriting existing password unless forced.
+		        Optionally replace only the first line of an existing file with a new password.
+		    $PROGRAM reencrypt [--path=subfolder,-p subfolder]
+		        Selectively reencrypt existing passwords.
+		    $PROGRAM rm [--recursive,-r] [--force,-f] pass-name
+		        Remove existing password or directory, optionally forcefully.
+		    $PROGRAM mv [--force,-f] old-path new-path
+		        Renames or moves old-path to new-path, optionally forcefully, selectively reencrypting.
+		    $PROGRAM cp [--force,-f] old-path new-path
+		        Copies old-path to new-path, optionally forcefully, selectively reencrypting.
+		    $PROGRAM git git-command-args...
+		        If the password store is a git repository, execute a git command
+		        specified by git-command-args.
+		    $PROGRAM help
+		        Show this text.
+		    $PROGRAM version
+		        Show version information.
 	_EOF
 }
 
@@ -278,8 +287,14 @@ cmd_reencrypt() {
 	local err=$?
 	eval set -- "$opts"
 	while true; do case $1 in
-		-p|--path) path="$2"; shift 2 ;;
-		--) shift; break ;;
+		-p | --path)
+			path="$2"
+			shift 2
+			;;
+		--)
+			shift
+			break
+			;;
 		*) die "Error: unexpected output from $GETOPT; passage needs GNU getopt." ;;
 	esac done
 
@@ -299,13 +314,24 @@ cmd_show() {
 	local err=$?
 	eval set -- "$opts"
 	while true; do case $1 in
-		-q|--qrcode) qrcode=1; selected_line="${2:-1}"; shift 2 ;;
-		-c|--clip) clip=1; selected_line="${2:-1}"; shift 2 ;;
-		--) shift; break ;;
+		-q | --qrcode)
+			qrcode=1
+			selected_line="${2:-1}"
+			shift 2
+			;;
+		-c | --clip)
+			clip=1
+			selected_line="${2:-1}"
+			shift 2
+			;;
+		--)
+			shift
+			break
+			;;
 		*) die "Error: unexpected output from $GETOPT; passage needs GNU getopt." ;;
 	esac done
 
-	[[ $err -ne 0 || ( $qrcode -eq 1 && $clip -eq 1 ) ]] && die "Usage: $PROGRAM $COMMAND [--clip[=line-number],-c[line-number]] [--qrcode[=line-number],-q[line-number]] [pass-name]"
+	[[ $err -ne 0 || ($qrcode -eq 1 && $clip -eq 1) ]] && die "Usage: $PROGRAM $COMMAND [--clip[=line-number],-c[line-number]] [--qrcode[=line-number],-q[line-number]] [pass-name]"
 
 	local pass
 	local path="$1"
@@ -368,14 +394,26 @@ cmd_insert() {
 	local err=$?
 	eval set -- "$opts"
 	while true; do case $1 in
-		-m|--multiline) multiline=1; shift ;;
-		-e|--echo) noecho=0; shift ;;
-		-f|--force) force=1; shift ;;
-		--) shift; break ;;
+		-m | --multiline)
+			multiline=1
+			shift
+			;;
+		-e | --echo)
+			noecho=0
+			shift
+			;;
+		-f | --force)
+			force=1
+			shift
+			;;
+		--)
+			shift
+			break
+			;;
 		*) die "Error: unexpected output from $GETOPT; passage needs GNU getopt." ;;
 	esac done
 
-	[[ $err -ne 0 || ( $multiline -eq 1 && $noecho -eq 0 ) || $# -ne 1 ]] && die "Usage: $PROGRAM $COMMAND [--echo,-e | --multiline,-m] [--force,-f] pass-name"
+	[[ $err -ne 0 || ($multiline -eq 1 && $noecho -eq 0) || $# -ne 1 ]] && die "Usage: $PROGRAM $COMMAND [--echo,-e | --multiline,-m] [--force,-f] pass-name"
 	local path="${1%/}"
 	local passfile="$PREFIX/$path.age"
 	check_sneaky_paths "$path"
@@ -445,16 +483,34 @@ cmd_generate() {
 	local err=$?
 	eval set -- "$opts"
 	while true; do case $1 in
-		-n|--no-symbols) characters="$CHARACTER_SET_NO_SYMBOLS"; shift ;;
-		-q|--qrcode) qrcode=1; shift ;;
-		-c|--clip) clip=1; shift ;;
-		-f|--force) force=1; shift ;;
-		-i|--in-place) inplace=1; shift ;;
-		--) shift; break ;;
+		-n | --no-symbols)
+			characters="$CHARACTER_SET_NO_SYMBOLS"
+			shift
+			;;
+		-q | --qrcode)
+			qrcode=1
+			shift
+			;;
+		-c | --clip)
+			clip=1
+			shift
+			;;
+		-f | --force)
+			force=1
+			shift
+			;;
+		-i | --in-place)
+			inplace=1
+			shift
+			;;
+		--)
+			shift
+			break
+			;;
 		*) die "Error: unexpected output from $GETOPT; passage needs GNU getopt." ;;
 	esac done
 
-	[[ $err -ne 0 || ( $# -ne 2 && $# -ne 1 ) || ( $force -eq 1 && $inplace -eq 1 ) || ( $qrcode -eq 1 && $clip -eq 1 ) ]] && die "Usage: $PROGRAM $COMMAND [--no-symbols,-n] [--clip,-c] [--qrcode,-q] [--in-place,-i | --force,-f] pass-name [pass-length]"
+	[[ $err -ne 0 || ($# -ne 2 && $# -ne 1) || ($force -eq 1 && $inplace -eq 1) || ($qrcode -eq 1 && $clip -eq 1) ]] && die "Usage: $PROGRAM $COMMAND [--no-symbols,-n] [--clip,-c] [--qrcode,-q] [--in-place,-i | --force,-f] pass-name [pass-length]"
 	local path="$1"
 	local length="${2:-$GENERATED_LENGTH}"
 	check_sneaky_paths "$path"
@@ -467,13 +523,16 @@ cmd_generate() {
 
 	[[ $inplace -eq 0 && $force -eq 0 && -e $passfile ]] && yesno "An entry already exists for $path. Overwrite it?"
 
-	read -r -n $length pass < <(LC_ALL=C tr -dc "$characters" < /dev/urandom)
+	read -r -n $length pass < <(LC_ALL=C tr -dc "$characters" </dev/urandom)
 	[[ ${#pass} -eq $length ]] || die "Could not generate password from /dev/urandom."
 	if [[ $inplace -eq 0 ]]; then
 		echo "$pass" | $AGE -e "${AGE_RECIPIENT_ARGS[@]}" -o "$passfile" || die "Password encryption aborted."
 	else
 		local passfile_temp="${passfile}.tmp.${RANDOM}.${RANDOM}.${RANDOM}.${RANDOM}.--"
-		if { echo "$pass"; $AGE -d -i "$IDENTITIES_FILE" "$passfile" | tail -n +2; } | $AGE -e "${AGE_RECIPIENT_ARGS[@]}" -o "$passfile_temp"; then
+		if {
+			echo "$pass"
+			$AGE -d -i "$IDENTITIES_FILE" "$passfile" | tail -n +2
+		} | $AGE -e "${AGE_RECIPIENT_ARGS[@]}" -o "$passfile_temp"; then
 			mv "$passfile_temp" "$passfile"
 		else
 			rm -f "$passfile_temp"
@@ -499,9 +558,18 @@ cmd_delete() {
 	local err=$?
 	eval set -- "$opts"
 	while true; do case $1 in
-		-r|--recursive) recursive="-r"; shift ;;
-		-f|--force) force=1; shift ;;
-		--) shift; break ;;
+		-r | --recursive)
+			recursive="-r"
+			shift
+			;;
+		-f | --force)
+			force=1
+			shift
+			;;
+		--)
+			shift
+			break
+			;;
 		*) die "Error: unexpected output from $GETOPT; passage needs GNU getopt." ;;
 	esac done
 	[[ $# -ne 1 ]] && die "Usage: $PROGRAM $COMMAND [--recursive,-r] [--force,-f] pass-name"
@@ -534,8 +602,14 @@ cmd_copy_move() {
 	local err=$?
 	eval set -- "$opts"
 	while true; do case $1 in
-		-f|--force) force=1; shift ;;
-		--) shift; break ;;
+		-f | --force)
+			force=1
+			shift
+			;;
+		--)
+			shift
+			break
+			;;
 		*) die "Error: unexpected output from $GETOPT; passage needs GNU getopt." ;;
 	esac done
 	[[ $# -ne 2 ]] && die "Usage: $PROGRAM $COMMAND [--force,-f] old-path new-path"
@@ -560,7 +634,7 @@ cmd_copy_move() {
 	set_git "$new_path"
 	if [[ $move -eq 1 ]]; then
 		mv $interactive -v "$old_path" "$new_path" || exit 1
-		[[ -e "$new_path" ]] && reencrypt_path "$new_path"
+		[[ -e $new_path ]] && reencrypt_path "$new_path"
 
 		set_git "$new_path"
 		if [[ -n $INNER_GIT_DIR && ! -e $old_path ]]; then
@@ -577,7 +651,7 @@ cmd_copy_move() {
 		rmdir -p "$old_dir" 2>/dev/null
 	else
 		cp $interactive -r -v "$old_path" "$new_path" || exit 1
-		[[ -e "$new_path" ]] && reencrypt_path "$new_path"
+		[[ -e $new_path ]] && reencrypt_path "$new_path"
 		git_add_file "$new_path" "Copy ${1} to ${2}."
 	fi
 }
@@ -589,7 +663,7 @@ cmd_git() {
 		git -C "$INNER_GIT_DIR" "$@" || exit 1
 		git_add_file "$PREFIX" "Add current contents of password store."
 
-		echo '*.age diff=age' > "$PREFIX/.gitattributes"
+		echo '*.age diff=age' >"$PREFIX/.gitattributes"
 		git_add_file .gitattributes "Configure git repository for age file diff."
 		git -C "$INNER_GIT_DIR" config --local diff.age.binary true
 		git -C "$INNER_GIT_DIR" config --local diff.age.textconv "$AGE -d -i ${IDENTITIES_FILE}"
@@ -634,11 +708,11 @@ cmd_extension() {
 PROGRAM="${0##*/}"
 COMMAND="$1"
 
-if [[ ! -f "$IDENTITIES_FILE" ]]; then
+if [[ ! -f $IDENTITIES_FILE ]]; then
 	cat >&2 <<-_EOF
-	Error: You must place an age identity at $IDENTITIES_FILE:
-	    age-keygen -o $IDENTITIES_FILE
-	before you may use the password store.
+		Error: You must place an age identity at $IDENTITIES_FILE:
+		    age-keygen -o $IDENTITIES_FILE
+		before you may use the password store.
 
 	_EOF
 	cmd_usage
@@ -646,20 +720,62 @@ if [[ ! -f "$IDENTITIES_FILE" ]]; then
 fi
 
 case "$1" in
-	init) shift;			cmd_init "$@" ;;
-	help|--help) shift;		cmd_usage "$@" ;;
-	version|--version) shift;	cmd_version "$@" ;;
-	show|ls|list) shift;		cmd_show "$@" ;;
-	find|search) shift;		cmd_find "$@" ;;
-	grep) shift;			cmd_grep "$@" ;;
-	insert|add) shift;		cmd_insert "$@" ;;
-	edit) shift;			cmd_edit "$@" ;;
-	generate) shift;		cmd_generate "$@" ;;
-	reencrypt) shift;		cmd_reencrypt "$@" ;;
-	delete|rm|remove) shift;	cmd_delete "$@" ;;
-	rename|mv) shift;		cmd_copy_move "move" "$@" ;;
-	copy|cp) shift;			cmd_copy_move "copy" "$@" ;;
-	git) shift;			cmd_git "$@" ;;
-	*)				cmd_extension_or_show "$@" ;;
+	init)
+		shift
+		cmd_init "$@"
+		;;
+	help | --help)
+		shift
+		cmd_usage "$@"
+		;;
+	version | --version)
+		shift
+		cmd_version "$@"
+		;;
+	show | ls | list)
+		shift
+		cmd_show "$@"
+		;;
+	find | search)
+		shift
+		cmd_find "$@"
+		;;
+	grep)
+		shift
+		cmd_grep "$@"
+		;;
+	insert | add)
+		shift
+		cmd_insert "$@"
+		;;
+	edit)
+		shift
+		cmd_edit "$@"
+		;;
+	generate)
+		shift
+		cmd_generate "$@"
+		;;
+	reencrypt)
+		shift
+		cmd_reencrypt "$@"
+		;;
+	delete | rm | remove)
+		shift
+		cmd_delete "$@"
+		;;
+	rename | mv)
+		shift
+		cmd_copy_move "move" "$@"
+		;;
+	copy | cp)
+		shift
+		cmd_copy_move "copy" "$@"
+		;;
+	git)
+		shift
+		cmd_git "$@"
+		;;
+	*) cmd_extension_or_show "$@" ;;
 esac
 exit 0

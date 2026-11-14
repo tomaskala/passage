@@ -4,13 +4,14 @@
 clip() {
 	local sleep_argv0="password store sleep on display $DISPLAY"
 	pkill -f "^$sleep_argv0" 2>/dev/null && sleep 0.5
-	local before="$($BASE64 < /dev/clipboard)"
-	echo -n "$1" > /dev/clipboard
+	local before="$($BASE64 </dev/clipboard)"
+	echo -n "$1" >/dev/clipboard
 	(
-		( exec -a "$sleep_argv0" sleep "$CLIP_TIME" )
-		local now="$($BASE64 < /dev/clipboard)"
+		(exec -a "$sleep_argv0" sleep "$CLIP_TIME")
+		local now="$($BASE64 </dev/clipboard)"
 		[[ $now != $(echo -n "$1" | $BASE64) ]] && before="$now"
-		echo "$before" | $BASE64 -d > /dev/clipboard
-	) >/dev/null 2>&1 & disown
+		echo "$before" | $BASE64 -d >/dev/clipboard
+	) >/dev/null 2>&1 &
+	disown
 	echo "Copied $2 to clipboard. Will clear in $CLIP_TIME seconds."
 }

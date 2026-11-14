@@ -7,11 +7,12 @@ clip() {
 	local before="$(pbpaste | $BASE64)"
 	echo -n "$1" | pbcopy
 	(
-		( exec -a "$sleep_argv0" sleep "$CLIP_TIME" )
+		(exec -a "$sleep_argv0" sleep "$CLIP_TIME")
 		local now="$(pbpaste | $BASE64)"
 		[[ $now != $(echo -n "$1" | $BASE64) ]] && before="$now"
 		echo "$before" | $BASE64 -d | pbcopy
-	) >/dev/null 2>&1 & disown
+	) >/dev/null 2>&1 &
+	disown
 	echo "Copied $2 to clipboard. Will clear in $CLIP_TIME seconds."
 }
 
