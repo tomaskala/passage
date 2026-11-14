@@ -213,7 +213,7 @@ cmd_version() {
 	============================================
 	=   passage: age-backed password manager   =
 	=                                          =
-	=                  v1.7.4                  =
+	=                  v1.8.0                  =
 	=                                          =
 	=             Filippo Valsorda             =
 	=                                          =
@@ -221,6 +221,10 @@ cmd_version() {
 	=                                          =
 	=             Jason A. Donenfeld           =
 	=               Jason@zx2c4.com            =
+	=                                          =
+	=                Modified by               =
+	=                                          =
+	=                 Tomas Kala               =
 	============================================
 	_EOF
 }
