@@ -222,7 +222,7 @@ cmd_version() {
 		============================================
 		=   passage: age-backed password manager   =
 		=                                          =
-		=                  v1.8.2                  =
+		=                  v1.8.3                  =
 		=                                          =
 		=             Filippo Valsorda             =
 		=                                          =
@@ -468,7 +468,7 @@ cmd_edit() {
 		$AGE -d -o "$tmp_file" -i "$IDENTITIES_FILE" "$passfile" || exit 1
 		action="Edit"
 	fi
-	${EDITOR:-vi} "$tmp_file"
+	${EDITOR:-vi} "$tmp_file" || die "Editor canceled edit."
 	[[ -f $tmp_file ]] || die "New password not saved."
 	$AGE -d -o - -i "$IDENTITIES_FILE" "$passfile" 2>/dev/null | diff - "$tmp_file" &>/dev/null && die "Password unchanged."
 	while ! $AGE -e "${AGE_RECIPIENT_ARGS[@]}" -o "$passfile" "$tmp_file"; do
